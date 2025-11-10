@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Траектория струи: планеты, частицы, ветер и унитаз</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    >
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/styles.css') }}"
+    >
+</head>
+<body>
+<div id="loader-overlay" class="hidden">
+    <div class="loader-backdrop"></div>
+    <div class="loader-content">
+        <div class="spinner-border" role="status" aria-hidden="true"></div>
+        <div class="loader-step-main">Пересчитываем траекторию...</div>
+        <div class="loader-step-gemini d-none">
+            Генерируем пацанский отчёт через Gemini...
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <h1 class="mb-4">Модель струи, частиц, ветра, гравитации и унитаза 🧪🚽🪐</h1>
+
+    <div class="row g-4">
+        <!-- Левая панель -->
+        <div class="col-md-5">
+            <div class="card p-3">
+                <form method="post" id="params-form">
+
+                    <div class="section-title">Гравитация</div>
+                    <div class="mb-3">
+                        <label class="form-label">Планета / тело</label>
+                        <select class="form-select form-select-sm" name="planet">
+                            {% for name, g in planet_gravity.items() %}
+                                <option value="{{ name }}" {% if planet == name %}selected{% endif %}>
+                                    {{ name }} (g={{ "%.2f"|format(g) }} м/с²)
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="section-title">Параметры струи</div>
+                    <!-- v0, alpha, k, rho как раньше -->
+                    <!-- ... тот же код, не меняем ... -->
+
+                    <div class="mb-2">
+                        <label class="form-label">Начальная скорость v₀, м/с</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="range" class="form-range"
+                                   id="v0Range"
+                                   min="1" max="8" step="0.1"
+                                   value="{{ '%.1f' % v0 }}"
+                                   oninput="v0Value.value=this.value">
+                            <span class="slider-value">
+                                <input id="v0Value" class="form-control form-control-sm"
+                                       type="number" step="0.1" min="1" max="8"
+                                       name="v0"
+                                       value="{{ '%.1f' % v0 }}"
+                                       oninput="v0Range.value=this.value">
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label">Угол α, градусов</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="range" class="form-range"
+                                   id="alphaRange"
+                                   min="5" max="85" step="1"
+                                   value="{{ '%.0f' % alpha_deg }}"
+                                   oninput="alphaValue.value=this.value">
+                            <span class="slider-value">
+                                <input id="alphaValue" class="form-control form-control-sm"
+                                       type="number" step="1" min="5" max="85"
+                                       name="alpha"
+                                       value="{{ '%.0f' % alpha_deg }}"
+                                       oninput="alphaRange.value=this.value">
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label">Коэффициент сопротивления k</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="range" class="form-range"
+                                   id="kRange"
+                                   min="0" max="1" step="0.05"
+                                   value="{{ '%.2f' % k }}"
+                                   oninput="kValue.value=this.value">
+                            <span class="slider-value">
+                                <input id="kValue" class="form-control form-control-sm"
+                                       type="number" step="0.05" min="0" max="1"
+                                       name="k"
+                                       value="{{ '%.2f' % k }}"
+                                       oninput="kRange.value=this.value">
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Плотность жидкости ρ, кг/м³</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="range" class="form-range"
+                                   id="rhoRange"
+                                   min="800" max="1500" step="10"
+                                   value="{{ '%.0f' % rho }}"
+                                   oninput="rhoValue.value=this.value">
+                            <span class="slider-value">
+                                <input id="rhoValue" class="form-control form-control-sm"
+                                       type="number" step="10" min="800" max="1500"
+                                       name="rho"
+                                       value="{{ '%.0f' % rho }}"
+                                       oninput="rhoRange.value=this.value">
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Тяжёлые частицы</div>
+                    <!-- материал + particle_count (без изменений) -->
+                    <div class="mb-2">
+                        <label class="form-label">Материал частиц</label>
+                        <select class="form-select form-select-sm" name="material">
+                            <option value="none" {% if material == 'none' %}selected{% endif %}>Без частиц</option>
+                            <option value="uranium" {% if material == 'uranium' %}selected{% endif %}>Уран</option>
+                            <option value="plutonium" {% if material == 'plutonium' %}selected{% endif %}>Плутоний</option>
+                            <option value="steel" {% if material == 'steel' %}selected{% endif %}>Сталь</option>
+                            <option value="gold" {% if material == 'gold' %}selected{% endif %}>Золото</option>
+                            <option value="antimony" {% if material == 'antimony' %}selected{% endif %}>Сурьма</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Количество тяжёлых частиц (0–10000)</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="range" class="form-range"
+                                   id="pcRange"
+                                   min="0" max="10000" step="100"
+                                   value="{{ particle_count }}"
+                                   oninput="pcValue.value=this.value">
+                            <span class="slider-value">
+                                <input id="pcValue" class="form-control form-control-sm"
+                                       type="number" step="100" min="0" max="10000"
+                                       name="particle_count"
+                                       value="{{ particle_count }}"
+                                       oninput="pcRange.value=this.value">
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Геометрия унитаза</div>
+                    <!-- distance + rim_height (без изменений) -->
+                    <div class="mb-2">
+                        <label class="form-label">Расстояние от члена до кромки унитаза, м</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="range" class="form-range"
+                                   id="distRange"
+                                   min="0.3" max="3.0" step="0.1"
+                                   value="{{ '%.2f' % d_toilet }}"
+                                   oninput="distValue.value=this.value">
+                            <span class="slider-value">
+                                <input id="distValue" class="form-control form-control-sm"
+                                       type="number" step="0.1" min="0.3" max="3.0"
+                                       name="d_toilet"
+                                       value="{{ '%.2f' % d_toilet }}"
+                                       oninput="distRange.value=this.value">
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Высота кромки унитаза относительно члена, м
+                            <small class="text-muted">(отрицательное — ниже)</small>
+                        </label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="range" class="form-range"
+                                   id="rimRange"
+                                   min="-1.5" max="0.5" step="0.05"
+                                   value="{{ '%.2f' % rim_height }}"
+                                   oninput="rimValue.value=this.value">
+                            <span class="slider-value">
+                                <input id="rimValue" class="form-control form-control-sm"
+                                       type="number" step="0.05" min="-1.5" max="0.5"
+                                       name="rim_height"
+                                       value="{{ '%.2f' % rim_height }}"
+                                       oninput="rimRange.value=this.value">
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Ветер</div>
+                    <!-- wind_dir + wind_speed (без изменений) -->
+                    <div class="mb-2">
+                        <label class="form-label">
+                            Направление ветра (°), ОТКУДА дует
+                            <small class="text-muted d-block">
+                                0° — от унитаза к тебе, 180° — от тебя к унитазу
+                            </small>
+                        </label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="range" class="form-range"
+                                   id="windDirRange"
+                                   min="0" max="359" step="1"
+                                   value="{{ '%.0f' % wind_dir }}"
+                                   oninput="windDirValue.value=this.value">
+                            <span class="slider-value">
+                                <input id="windDirValue" class="form-control form-control-sm"
+                                       type="number" step="1" min="0" max="359"
+                                       name="wind_dir"
+                                       value="{{ '%.0f' % wind_dir }}"
+                                       oninput="windDirRange.value=this.value">
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Скорость ветра, м/с</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="range" class="form-range"
+                                   id="windSpeedRange"
+                                   min="0" max="20" step="0.5"
+                                   value="{{ '%.1f' % wind_speed }}"
+                                   oninput="windSpeedValue.value=this.value">
+                            <span class="slider-value">
+                                <input id="windSpeedValue" class="form-control form-control-sm"
+                                       type="number" step="0.5" min="0" max="20"
+                                       name="wind_speed"
+                                       value="{{ '%.1f' % wind_speed }}"
+                                       oninput="windSpeedRange.value=this.value">
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="section-title">Стиль отчёта</div>
+                    <div class="mb-2">
+                        <label class="form-label">Формат текста</label>
+                        <select class="form-select form-select-sm" name="report_style" id="reportStyleSelect">
+                            <option value="formal" {% if report_style == 'formal' %}selected{% endif %}>
+                                Русский формальный
+                            </option>
+                            <option value="gopnik" {% if report_style == 'gopnik' %}selected{% endif %}>
+                                Русский пацанский
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="useGemini"
+                               name="use_gemini"
+                               {% if use_gemini %}checked{% endif %}>
+                        <label class="form-check-label" for="useGemini">
+                            Генерировать пацанский отчёт через Gemini
+                            <small class="text-muted d-block">
+                                (учитывается только при выбранном «Русский пацанский»)
+                            </small>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        Пересчитать
+                    </button>
+
+                    <div class="mt-3 text-center fw-bold">
+                        ПОПАДЁТ В УНИТАЗ: {{ '%.1f' % hit_pct }}%<br>
+                        ПРОМАХНЁТСЯ: {{ '%.1f' % miss_pct }}%
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Правая колонка -->
+        <div class="col-md-7">
+            <div class="card p-3 mb-3 d-flex align-items-center justify-content-center">
+                <img class="plot img-fluid"
+                     src="data:image/png;base64,{{ plot_data }}"
+                     alt="График траектории">
+            </div>
+            <div class="card p-3">
+                <h5 class="mb-2">Текстовый отчёт</h5>
+                <p class="mb-0">
+                    {{ report_text }}
+                </p>
+
+                {% if hit_pct < 5.0 %}
+                <div class="loh-wrapper">
+                    <img src="{{ url_for('static', filename='loh.jpg') }}" alt="loh">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
